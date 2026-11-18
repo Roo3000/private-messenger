@@ -10,7 +10,7 @@
     "postinstall": "prisma skills sync || exit 0"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.1",
+    "@prisma/client": "6.19.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -18,7 +18,7 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.74.0",
     "next": "16.4.6",
-    "prisma": "^8.0.0-rc.34",
+    "prisma": "6.19.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "socket.io": "^4.8.4",
@@ -38,6 +38,9 @@
     "typescript": "^5"
   },
   "allowScripts": {
-    "esbuild@0.28.2": true
+    "esbuild@0.28.2": true,
+    "@prisma/client@6.19.0": true,
+    "prisma@6.19.0": true,
+    "@prisma/engines@6.19.0": true
   }
 }

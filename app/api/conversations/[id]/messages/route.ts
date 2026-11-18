@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/requestUser";
+import { emitNewMessage } from "@/lib/socket";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -99,5 +100,13 @@ export async function POST(req: Request, ctx: Ctx) {
       createdAt: message.createdAt.toISOString(),
       sender: message.sender,
     },
+  });
+  emitNewMessage(id, {
+    id: message.id,
+    conversationId: message.conversationId,
+    senderId: message.senderId,
+    body: message.body,
+    createdAt: message.createdAt.toISOString(),
+    sender: message.sender,
   });
 }

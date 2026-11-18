@@ -1,5 +1,6 @@
 "use client";
 
+import { getSocket } from "@/lib/socketClient";
 import { Suspense, useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -20,6 +21,7 @@ type Message = {
 function ConversationInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const [peerName, setPeerName] = useState("Conversation");
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,6 +41,29 @@ function ConversationInner() {
     setUser(JSON.parse(u));
   }, [router]);
 
+  useEffect(() => {
+    if (!id) return;
+    const s = getSocket();
+    if (!s) return;
+
+    s.emit("join", id);
+
+    const onNew = (msg: Message) => {
+      if (msg.conversationId !== id) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
+    s.on("message:new", onNew);
+
+    return () => {
+      s.emit("leave", id);
+      s.off("message:new", onNew);
+    };
+  }, [id]);
+
   async function loadMessages(t: string) {
     setLoading(true);
     setError(null);
@@ -56,6 +81,28 @@ function ConversationInner() {
       setError("Network error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadPeer(t: string) {
+    try {
+      const res = await fetch("/api/conversations", {
+        headers: { Authorization: `Bearer ${t}` },
+      });
+      const data = await res.json();
+      if (!res.ok) return;
+      const conv = (data.conversations || []).find(
+        (c: { id: string }) => c.id === id
+      );
+      if (!conv) return;
+      const other = (conv.members || []).find(
+        (m: User) => m.id !== user?.id
+      );
+      if (other) {
+        setPeerName(other.displayName || other.username);
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -87,6 +134,12 @@ function ConversationInner() {
         clearInterval(interval);
     };
   }, [token, id]);
+
+  useEffect(() => {
+    if (!token || !id || !user) return;
+    loadPeer(token);
+    // ... existing polling effect body
+  }, [token, id, user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -121,7 +174,7 @@ function ConversationInner() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <header className="border-b border-slate-800 px-4 py-3 flex items-center gap-3">
+     <header className="border-b border-slate-800 px-4 py-3 flex items-center gap-3">
         <button
           type="button"
           onClick={() => router.push("/chat")}
@@ -129,7 +182,10 @@ function ConversationInner() {
         >
           ← Back
         </button>
-        <h1 className="font-semibold text-sm">Conversation</h1>
+        <div>
+          <h1 className="font-semibold text-sm">{peerName}</h1>
+          <p className="text-[11px] text-slate-500">Private chat</p>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-lg w-full mx-auto">
@@ -159,6 +215,12 @@ function ConversationInner() {
                   </div>
                 )}
                 <div>{m.body}</div>
+                <div className="text-[10px] mt-1 opacity-70">
+                  {new Date(m.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
             </div>
           );
